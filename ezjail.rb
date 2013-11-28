@@ -4,11 +4,11 @@ module Ezjail
   class Jail
 
     def self.create(name, ip)
-      raise EzjailError, "Execution of #{__method__.to_s} command failed." unless execute(__method__.to_sym, ip)[:success]
+      raise EzjailError, "Execution of #{__method__.to_s} command failed." unless execute(__method__.to_sym, name, ip)[:success]
     end
 
     def self.delete(name)
-      raise EzjailError, "Execution of #{__method__.to_s} command failed." unless execute(__method__.to_sym)[:success]
+      raise EzjailError, "Execution of #{__method__.to_s} command failed." unless execute(__method__.to_sym, name)[:success]
     end
 
     def self.list
