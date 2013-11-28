@@ -4,16 +4,16 @@ module Ezjail
   class Jail
 
     def self.create(name, ip)
-
+      raise EzjailError, "Execution of #{__method__.to_s} command failed." unless execute(__method__.to_sym, ip)[:success]
     end
 
-    def self.destroy(name)
-
+    def self.delete(name)
+      raise EzjailError, "Execution of #{__method__.to_s} command failed." unless execute(__method__.to_sym)[:success]
     end
 
     def self.list
-      list = execute(:list)
-      raise EzjailError, "Execution of list command failed." unless list[:success]
+      list = execute(__method__.to_sym)
+      raise EzjailError, "Execution of #{__method__.to_s} command failed." unless list[:success]
       organize(list[:out])
     end
 
@@ -30,7 +30,7 @@ module Ezjail
     def self.execute(cmd, *args)
       ezjail_bin = Helper::Which.which('ezjail-admin')
       raise EzjailError, "Can not find ezjail-admin binary." if ezjail_bin.nil?
-      output = `#{ezjail_bin} #{cmd} #{args.join(' ')}`
+      output = `#{ezjail_bin} #{cmd} #{args.join(' ').split(/&|\||\>|\</).shift.strip}`
       {out: output.split("\n"), success: $?.success?}
     end
 
