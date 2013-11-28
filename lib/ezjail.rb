@@ -4,20 +4,26 @@ module Ezjail
   class Jail
 
     def self.create(name, ip)
-      raise EzjailError, "Execution of #{__method__.to_s} command failed." unless execute(__method__.to_sym, name, ip)[:success]
+      error unless execute(__method__.to_sym, name, ip)[:success]
     end
 
-    def self.delete(name)
-      raise EzjailError, "Execution of #{__method__.to_s} command failed." unless execute(__method__.to_sym, name)[:success]
+    %w{ :start, :delete }.each do |method_name|
+      define_method(method_name) do |jail_name|
+        error unless execute(__method__.to_sym, jail_name)[:success]
+      end
     end
 
     def self.list
       list = execute(__method__.to_sym)
-      raise EzjailError, "Execution of #{__method__.to_s} command failed." unless list[:success]
+      error unless list[:success]
       organize(list[:out])
     end
 
     private
+
+    def self.error
+      raise EzjailError, "Execution of #{caller[0][/`.*'/][1..-2]} method failed."
+    end
 
     def self.present?(name)
       result = false
@@ -30,16 +36,14 @@ module Ezjail
     def self.execute(cmd, *args)
       ezjail_bin = Helper::Which.which('ezjail-admin')
       raise EzjailError, "Can not find ezjail-admin binary." if ezjail_bin.nil?
-      output = `#{ezjail_bin} #{cmd} #{args.join(' ').split(/&|\||\>|\</).shift.strip}`
+      output = `#{ezjail_bin} #{cmd} #{args.join(' ').split(/&|\||\>|\</).shift.strip if args.size != 0}`
       {out: output.split("\n"), success: $?.success?}
     end
 
-    def organize(jail_list)
+    def self.organize(jail_list)
       result = Hash.new
       jail_list.shift(2).map! { |s| s.split(' ') }
       jail_list.each do |l|
-        jail = {ip: []}
-
         # If first field is ezjail flags move it to the end of array
         # From man EZJAIL-ADMIN(8) :
         # The first column is the status flag consisting of 2 or 3 letters. The
@@ -56,21 +60,20 @@ module Ezjail
         #   S     The jail is stopped.
         #
         # If present, the third letter, N, means that the jail is not automatically started.
-        if l[0] =~ /^[DIEBZ][RAS]N?$/
-          l.push(l.shift)
-        end
+        l.push(l.shift) if l[0] =~ /^[DIEBZ][RAS]N?$/
 
         tmp = l[1].split(/\/|\|/)
         network = {interface: "#{tmp.shift if tmp.size > 2}", mask: tmp.pop, address: tmp}
 
+        jail = {network: []}
         if l.size > 2
-          jail[:ip].unshift(network)
+          jail[:network].unshift(network)
           jail[:name] = l[2]
           jail[:path] = l[3]
           jail[:status] = l[4]
           result[l[0]] = jail
         else
-          result[l[0]][:ip].unshift(network)
+          result[l[0]][:network].unshift(network)
         end
       end
       result
