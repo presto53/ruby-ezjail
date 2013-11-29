@@ -42,7 +42,8 @@ module Ezjail
 
     def self.organize(jail_list)
       result = Hash.new
-      jail_list.shift(2).map! { |s| s.split(' ') }
+      jail_list.shift(2)
+      jail_list.map! { |s| s.split(' ') }
       jail_list.each do |l|
         # If first field is ezjail flags move it to the end of array
         # From man EZJAIL-ADMIN(8) :
@@ -63,17 +64,17 @@ module Ezjail
         l.push(l.shift) if l[0] =~ /^[DIEBZ][RAS]N?$/
 
         tmp = l[1].split(/\/|\|/)
-        network = {interface: "#{tmp.shift if tmp.size > 2}", mask: tmp.pop, address: tmp}
+        network = {interface: "#{tmp.shift if tmp.size > 2}", mask: tmp.pop, ip: tmp.join}
 
         jail = {network: []}
         if l.size > 2
-          jail[:network].unshift(network)
+          jail[:network].push(network)
           jail[:name] = l[2]
           jail[:path] = l[3]
           jail[:status] = l[4]
           result[l[0]] = jail
         else
-          result[l[0]][:network].unshift(network)
+          result[l[0]][:network].push(network)
         end
       end
       result
