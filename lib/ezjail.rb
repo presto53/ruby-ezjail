@@ -3,12 +3,17 @@ require_relative 'helpers/which'
 module Ezjail
   class Jail
 
-    def self.create(name, ip)
-      error unless execute(__method__.to_sym, name, ip)[:success]
+    def self.create(jail_name, ip)
+      error unless execute(__method__.to_sym, jail_name, ip)[:success]
     end
 
-    %w{ :start, :delete }.each do |method_name|
-      define_method(method_name) do |jail_name|
+    def self.delete(jail_name, stop=false, remove=false)
+      args = "#{jail_name} #{'-f' if stop} #{'-w' if remove}"
+      error unless execute(__method__.to_sym, args)[:success]
+    end
+
+    %w{ :start, :stop, :restart, :cryptostart }.each do |method_name|
+      define_singleton_method(method_name) do |jail_name|
         error unless execute(__method__.to_sym, jail_name)[:success]
       end
     end
@@ -66,6 +71,10 @@ module Ezjail
         tmp = l[1].split(/\/|\|/)
         network = {interface: "#{tmp.shift if tmp.size > 2}", mask: tmp.pop, ip: tmp.join}
 
+        # Yeeah i know that this regexp ugly and not precise
+        raise 'Invalid input format' unless /^([0-9]{1,3}.){3}[0-9]{1,3}$/ === network[:ip] and
+                                            /^[0-9]{2}$/ === network[:mask] and
+                                            /^([a-z0-9]*)?$/ === network[:interface]
         jail = {network: []}
         if l.size > 2
           jail[:network].push(network)
