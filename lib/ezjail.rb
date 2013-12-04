@@ -1,20 +1,35 @@
 require_relative 'helpers/which'
 
+class String
+  def safe
+    self.split(/&|\||\>|\</).shift.strip
+  end
+  def safe_name?
+    return false if self.split(' ').size > 1
+    true
+  end
+end
+
 module Ezjail
   class Jail
 
-    def self.create(jail_name, ip)
-      error unless execute(__method__.to_sym, jail_name, ip)[:success]
+    def self.create(jail, ip)
+      error unless jail.to_s.safe_name?
+      error unless execute(__method__.to_sym, jail, ip)[:success]
     end
 
-    def self.delete(jail_name, stop=false, remove=false)
-      args = "#{jail_name} #{'-f' if stop} #{'-w' if remove}"
-      error unless execute(__method__.to_sym, args)[:success]
+    def self.delete(jail, stop=false, remove=false)
+      error unless jail.to_s.safe_name?
+      args = "#{jail} #{'-f' if stop} #{'-w' if remove}".strip!
+      result = execute(__method__.to_sym, args)
+      error unless result[:success]
+      result[:success]
     end
 
     %w{ :start, :stop, :restart, :cryptostart }.each do |method_name|
-      define_singleton_method(method_name) do |jail_name|
-        error unless execute(__method__.to_sym, jail_name)[:success]
+      define_singleton_method(method_name) do |jail|
+        error unless jail.to_s.safe_name?
+        error unless execute(__method__.to_sym, jail)[:success]
       end
     end
 
@@ -27,7 +42,7 @@ module Ezjail
     private
 
     def self.error
-      raise EzjailError, "Execution of #{caller[0][/`.*'/][1..-2]} method failed."
+      raise Error, "Execution of #{caller[0][/`.*'/][1..-2]} method failed."
     end
 
     def self.present?(name)
@@ -40,8 +55,9 @@ module Ezjail
 
     def self.execute(cmd, *args)
       ezjail_bin = Helper::Which.which('ezjail-admin')
-      raise EzjailError, "Can not find ezjail-admin binary." if ezjail_bin.nil?
-      output = `#{ezjail_bin} #{cmd} #{args.join(' ').split(/&|\||\>|\</).shift.strip if args.size != 0}`
+      raise Error, "Can not find ezjail-admin binary." if ezjail_bin.nil?
+      cmd = "#{ezjail_bin} #{cmd.to_s.safe} #{args.join(' ').safe if args.size != 0}".strip!
+      output = `#{cmd}`
       {out: output.split("\n"), success: $?.success?}
     end
 
@@ -90,6 +106,6 @@ module Ezjail
     end
   end
 
-  class EzjailError < StandardError
+  class Error < StandardError
   end
 end
