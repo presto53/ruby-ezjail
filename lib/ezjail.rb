@@ -11,14 +11,15 @@ class String
 end
 
 module Ezjail
-  class Jail
+  class Jail; end
 
-    def self.create(jail, ip)
+  class << Jail
+    def create(jail, ip)
       error unless jail.to_s.safe_name?
       error unless execute(__method__.to_sym, jail, ip)[:success]
     end
 
-    def self.delete(jail, stop=false, remove=false)
+    def delete(jail, stop=false, remove=false)
       error unless jail.to_s.safe_name?
       args = "#{jail} #{'-f' if stop} #{'-w' if remove}".strip!
       result = execute(__method__.to_sym, args)
@@ -27,13 +28,13 @@ module Ezjail
     end
 
     %w{ :start, :stop, :restart, :cryptostart }.each do |method_name|
-      define_singleton_method(method_name) do |jail|
+      define_method(method_name) do |jail|
         error unless jail.to_s.safe_name?
         error unless execute(__method__.to_sym, jail)[:success]
       end
     end
 
-    def self.list
+    def list
       list = execute(__method__.to_sym)
       error unless list[:success]
       organize(list[:out])
@@ -41,11 +42,11 @@ module Ezjail
 
     private
 
-    def self.error
+    def error
       raise Error, "Execution of #{caller[0][/`.*'/][1..-2]} method failed."
     end
 
-    def self.present?(name)
+    def present?(name)
       result = false
       list.each_value do |jail|
         result = true if name.eql? jail[:name]
@@ -53,7 +54,7 @@ module Ezjail
       result
     end
 
-    def self.execute(cmd, *args)
+    def execute(cmd, *args)
       ezjail_bin = Helper::Which.which('ezjail-admin')
       raise Error, "Can not find ezjail-admin binary." if ezjail_bin.nil?
       cmd = "#{ezjail_bin} #{cmd.to_s.safe} #{args.join(' ').safe if args.size != 0}".strip!
@@ -61,7 +62,7 @@ module Ezjail
       {out: output.split("\n"), success: $?.success?}
     end
 
-    def self.organize(jail_list)
+    def organize(jail_list)
       result = Hash.new
       jail_list.shift(2)
       jail_list.map! { |s| s.split(' ') }
